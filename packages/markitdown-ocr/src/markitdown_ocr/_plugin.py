@@ -11,6 +11,7 @@ from ._pdf_converter_with_ocr import PdfConverterWithOCR
 from ._docx_converter_with_ocr import DocxConverterWithOCR
 from ._pptx_converter_with_ocr import PptxConverterWithOCR
 from ._xlsx_converter_with_ocr import XlsxConverterWithOCR
+from ._image_converter_with_ocr import ImageConverterWithOCR
 
 
 __plugin_interface_version__ = 1
@@ -39,8 +40,9 @@ def register_converters(markitdown: MarkItDown, **kwargs: Any) -> None:
     llm_prompt = kwargs.get("llm_prompt")
     compress_images = kwargs.get("compress_images", True)
 
-    ocr_service: LLMVisionOCRService | None = None
-    if llm_client and llm_model:
+    # An explicit service (e.g. RapidOCRService for offline OCR) wins over the LLM one.
+    ocr_service: Any = kwargs.get("ocr_service")
+    if ocr_service is None and llm_client and llm_model:
         ocr_service = LLMVisionOCRService(
             client=llm_client,
             model=llm_model,
@@ -85,3 +87,10 @@ def register_converters(markitdown: MarkItDown, **kwargs: Any) -> None:
     markitdown.register_converter(
         XlsxConverterWithOCR(ocr_service=ocr_service), priority=PRIORITY_OCR_ENHANCED
     )
+
+    # Image files: the built-in ImageConverter already reads them with an LLM, so only
+    # add OCR for image files when a non-LLM service (offline OCR) was passed in.
+    if ocr_service is not None and not isinstance(ocr_service, LLMVisionOCRService):
+        markitdown.register_converter(
+            ImageConverterWithOCR(ocr_service=ocr_service), priority=PRIORITY_OCR_ENHANCED
+        )

@@ -19,6 +19,7 @@ from ._ocr_service import (
     should_skip_image,
     is_quota_or_rate_limit_error,
 )
+from ._rapidocr_service import RapidOCRService, rapidocr_available
 from ._pdf_converter_with_ocr import PdfConverterWithOCR
 from ._docx_converter_with_ocr import DocxConverterWithOCR
 from ._pptx_converter_with_ocr import PptxConverterWithOCR
@@ -30,6 +31,8 @@ __all__ = [
     "register_converters",
     "OCRResult",
     "LLMVisionOCRService",
+    "RapidOCRService",
+    "rapidocr_available",
     "OCRFatalError",
     "OCRQuotaExceededError",
     "OCRAuthError",

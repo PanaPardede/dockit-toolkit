@@ -173,7 +173,7 @@ def load_settings():
         "model": "gemini-3.6-flash",
         "auto_save_md": False,
         "compress_images": True,
-        "ocr_engine": "default",
+        "ocr_engine": "offline",   # "offline" | "ai" | "off"; see ocr_mode()
         "ocr_language": "id",
         "base_url": "",
         "pdf_compress_enabled": False,
@@ -222,6 +222,13 @@ def load_settings():
     if not str(defaults.get("model") or "").strip():
         defaults["model"] = GEMINI_MODELS[0]
     return defaults
+
+
+def ocr_mode(settings) -> str:
+    """'ai', 'offline' or 'off'. AI needs a key; any other/legacy engine value means offline."""
+    if settings.get("ai_vision_enabled") and str(settings.get("api_key", "")).strip():
+        return "ai"
+    return "off" if settings.get("ocr_engine") == "off" else "offline"
 
 
 def save_settings(settings, show_error_parent=None):
@@ -296,8 +303,8 @@ def open_folder_and_select(file_path: Path):
 class SettingsDialog(tk.Toplevel):
     def __init__(self, parent, settings, on_saved):
         super().__init__(parent)
-        self.title("AI Vision Settings")
-        self.geometry("520x680")
+        self.title("Text Recognition Settings")
+        self.geometry("520x790")
         self.resizable(False, False)
         self.configure(bg=C_BG)
         self.transient(parent)
@@ -308,22 +315,30 @@ class SettingsDialog(tk.Toplevel):
 
     def _build(self):
         p = PAD
-        tk.Label(self, text="AI Vision Settings",
+        tk.Label(self, text="Text Recognition (OCR)",
                  font=FONT_TITLE_LARGE, fg=C_TEXT, bg=C_BG
                  ).pack(anchor="w", padx=p, pady=(p, 2))
         tk.Label(self,
-                 text="AI Vision reads scanned pages, images, diagrams and tables\n"
-                      "inside your documents. Files are sent to the provider you pick.",
+                 text="How to read scanned pages and images that have no text layer.",
                  font=FONT_SMALL, fg=C_SUBTEXT, bg=C_BG, justify="left"
-                 ).pack(anchor="w", padx=p, pady=(0, 10))
+                 ).pack(anchor="w", padx=p, pady=(0, 8))
 
-        self._var_en = tk.BooleanVar(value=self._s.get("ai_vision_enabled", False))
-        ttk.Checkbutton(self, text="Enable AI Vision", variable=self._var_en
-                        ).pack(anchor="w", padx=p, pady=(0, 10))
+        self._var_mode = tk.StringVar(value=ocr_mode(self._s))
+        for val, lbl, hint in [
+            ("offline", "Offline OCR (recommended)",
+             "Runs on this computer. Free, private, no API key. Reads printed text."),
+            ("ai", "AI Vision",
+             "Sends images to an AI model. Better with handwriting, tables and charts."),
+            ("off", "Off", "Only extract text that is already in the file."),
+        ]:
+            ttk.Radiobutton(self, text=lbl, variable=self._var_mode, value=val,
+                            command=self._on_mode).pack(anchor="w", padx=p)
+            tk.Label(self, text=hint, font=FONT_CAPTION, fg=C_SUBTEXT, bg=C_BG
+                     ).pack(anchor="w", padx=(p + 28, p), pady=(0, 4))
 
-        # Provider
-        frm = ttk.LabelFrame(self, text=" Provider ", padding=(10, 6))
-        frm.pack(fill="x", padx=p, pady=(0, 10))
+        # AI Vision options (enabled only when AI Vision is chosen)
+        frm = ttk.LabelFrame(self, text=" AI Vision provider ", padding=(10, 6))
+        frm.pack(fill="x", padx=p, pady=(6, 10))
         self._var_prov = tk.StringVar(value=self._s.get("provider", "gemini"))
         for val, lbl in [("gemini", "Google Gemini  (has a free tier)"),
                           ("openai", "OpenAI")]:
@@ -380,7 +395,7 @@ class SettingsDialog(tk.Toplevel):
                  fg=C_TEXT, bg=C_BG).pack(anchor="w", padx=p, pady=(0, 6))
 
         self._var_compress = tk.BooleanVar(value=self._s.get("compress_images", True))
-        ttk.Checkbutton(self, text="Shrink images before sending (faster, cheaper)",
+        ttk.Checkbutton(self, text="Shrink images before sending to AI Vision (faster, cheaper)",
                         variable=self._var_compress
                         ).pack(anchor="w", padx=p, pady=(0, 4))
 
@@ -396,7 +411,16 @@ class SettingsDialog(tk.Toplevel):
                  bg=C_BTN_SEC, fg=C_TEXT, active_bg=C_BTN_SECH,
                  padx=14, pady=7).pack(side="right", padx=(0, 8))
 
+        self._ai_widgets = [w for w in (frm, *frm.winfo_children(), self._cmb, self._ent,
+                                        self._ent_url, *kf.winfo_children())
+                            if isinstance(w, ttk.Widget) and not isinstance(w, ttk.LabelFrame)]
         self._on_prov(initial=True)
+        self._on_mode()
+
+    def _on_mode(self):
+        state = ["!disabled"] if self._var_mode.get() == "ai" else ["disabled"]
+        for w in self._ai_widgets:
+            w.state(state)
 
     def _on_prov(self, initial=False):
         models = GEMINI_MODELS if self._var_prov.get() == "gemini" else OPENAI_MODELS
@@ -419,12 +443,13 @@ class SettingsDialog(tk.Toplevel):
         key = self._ent.get().strip()
         model = self._var_model.get().strip()
         base_url = self._ent_url.get().strip()
-        if self._var_en.get() and not key:
+        use_ai = self._var_mode.get() == "ai"
+        if use_ai and not key:
             messagebox.showwarning("API Key Missing",
-                "Enter an API key, or turn off AI Vision.",
+                "Enter an API key, or choose Offline OCR.",
                 parent=self)
             return
-        if self._var_en.get() and not model:
+        if use_ai and not model:
             messagebox.showwarning("Model Missing", "Pick or type a model name.", parent=self)
             return
         if base_url and not base_url.lower().startswith(("http://", "https://")):
@@ -432,7 +457,8 @@ class SettingsDialog(tk.Toplevel):
                 "The base URL must start with http:// or https://", parent=self)
             return
         self._s.update({
-            "ai_vision_enabled": self._var_en.get(),
+            "ai_vision_enabled": use_ai,
+            "ocr_engine": self._var_mode.get(),
             "provider": self._var_prov.get(),
             "api_key":  key,
             "model":    model,
@@ -480,9 +506,51 @@ def create_markitdown_instance(settings=None, cancel_event=None, on_progress=Non
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            return MarkItDown(), None, False
+            plain = MarkItDown()
     except Exception as e:
         return None, str(e), False
+    if ocr_mode(settings or {}) == "offline":
+        try:
+            from markitdown_ocr import RapidOCRService, rapidocr_available
+            if rapidocr_available():
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    ocr = MarkItDown(enable_plugins=True,
+                                     ocr_service=RapidOCRService(cancel_event, on_progress))
+                return _OfflineOcrConverter(plain, ocr), None, False
+        except Exception as e:
+            logger.warning("Offline OCR unavailable, converting without it: %s", e)
+    return plain, None, False
+
+
+OCR_IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff", ".webp"}
+
+
+def needs_ocr(path) -> bool:
+    """True for image files and for PDFs with at least one page that has no text layer."""
+    ext = os.path.splitext(str(path))[1].lower()
+    if ext in OCR_IMAGE_EXTS:
+        return True
+    if ext != ".pdf":
+        return False
+    try:
+        import pymupdf
+        with pymupdf.open(str(path)) as doc:
+            if doc.needs_pass:
+                return False
+            return any(len(page.get_text().strip()) < 10 for page in doc)
+    except Exception:
+        return False
+
+
+class _OfflineOcrConverter:
+    """Uses the built-in converters (better tables) unless the file needs OCR."""
+
+    def __init__(self, plain, ocr):
+        self.plain, self.ocr = plain, ocr
+
+    def convert(self, path, **kwargs):
+        return (self.ocr if needs_ocr(path) else self.plain).convert(path, **kwargs)
 
 
 def _find_cause(exc, *class_names):
@@ -545,10 +613,10 @@ class MarkItDownTab(tk.Frame):
                  font=FONT_SMALL, fg=C_SUBTEXT, bg=C_BG).pack(side="left")
 
         # AI settings: small link on the right
-        ai_on = (self._settings.get("ai_vision_enabled")
-                 and bool(self._settings.get("api_key", "").strip()))
-        ai_indicator = "● AI Vision on" if ai_on else "○ AI Vision off"
-        ai_color = C_SUCCESS if ai_on else C_SUBTEXT
+        mode = ocr_mode(self._settings)
+        ai_indicator = {"ai": "● OCR: AI Vision", "offline": "● OCR: Offline",
+                        "off": "○ OCR: Off"}[mode]
+        ai_color = C_SUBTEXT if mode == "off" else C_SUCCESS
         lbl_ai = tk.Label(bar, text=ai_indicator,
                           font=FONT_SMALL, fg=ai_color, bg=C_BG, cursor="hand2")
         lbl_ai.pack(side="right")
@@ -956,7 +1024,8 @@ class MarkItDownTab(tk.Frame):
 
         def worker():
             def on_image(n):
-                ui(lambda: self._var_progress.set(f"AI Vision: reading image {n}..."))
+                ui(lambda: self._var_progress.set(
+                    f"{'AI Vision' if ai else 'Offline OCR'}: reading image {n}..."))
             md_i, err, ai_used = create_markitdown_instance(settings, cancel_event, on_image)
             if not md_i:
                 ui(lambda: self._show_error(filepath, f"Could not start the converter:\n\n{err}"))
@@ -965,7 +1034,9 @@ class MarkItDownTab(tk.Frame):
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     result = md_i.convert(filepath)
-                text = (result.markdown or "").strip() or "(No text found.)"
+                text = (result.markdown or "").strip() or (
+                    "(No text found. If this is a scan, choose Offline OCR in Settings.)"
+                    if ocr_mode(settings) == "off" else "(No text found.)")
                 ui(lambda: self._show_result(filepath, text, ai_used))
             except PermissionError:
                 ui(lambda: self._show_error(filepath,
@@ -2981,15 +3052,15 @@ class MToolsApp:
         self.root.mainloop()
 
     def _refresh_statusbar(self):
-        ai = (self._settings.get("ai_vision_enabled")
-              and bool(self._settings.get("api_key", "").strip()))
-        if ai:
+        mode = ocr_mode(self._settings)
+        if mode == "ai":
             prov  = self._settings.get("provider", "gemini")
             model = self._settings.get("model", "")
-            prov_name = "Gemini" if prov == "gemini" else "OpenAI"
-            txt = f"AI Vision on: {prov_name} / {model}"
+            prov_name = "Custom URL" if (self._settings.get("base_url") or "").strip() else (
+                "Gemini" if prov == "gemini" else "OpenAI")
+            txt = f"OCR: AI Vision ({prov_name} / {model})"
         else:
-            txt = "AI Vision off"
+            txt = "OCR: Offline (on this computer)" if mode == "offline" else "OCR: Off"
         self._lbl_status.config(text=f"  {APP_NAME} {APP_VERSION}   |   {txt}")
 
     def _on_settings_changed(self, new_settings):

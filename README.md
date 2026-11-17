@@ -1,6 +1,6 @@
 # DocKit
 
-An offline document toolkit for Windows. Convert documents to text, turn Office files into PDFs, merge PDFs and make them smaller, all in one small desktop app. Your files stay on your computer unless you turn on AI Vision.
+An offline document toolkit for Windows. Convert documents to text (scans included), turn Office files into PDFs, merge PDFs and make them smaller, all in one desktop app. Your files stay on your computer unless you turn on AI Vision.
 
 ![Convert to Text](docs/convert.png)
 
@@ -16,13 +16,16 @@ An offline document toolkit for Windows. Convert documents to text, turn Office 
 
 PowerPoint to PDF, Word to PDF and Merge PDF can also compress their output.
 
-### AI Vision (optional)
+### Scans and photos of documents (OCR)
 
-Scanned PDFs and pictures of documents have no text layer, so normal conversion finds nothing. AI Vision sends those pages and images to a vision model, which writes out the text and describes charts and diagrams.
+Scanned PDFs and pictures of documents have no text layer, so normal conversion finds nothing. Pick how DocKit reads them in **Settings**:
 
-- Works with **Google Gemini** (has a free tier), **OpenAI**, or any **OpenAI-compatible endpoint** through the Base URL field: OpenRouter, or a local model in Ollama or LM Studio, so nothing leaves your machine.
-- The API key is stored in Windows Credential Manager, not in a plain file.
-- If the key is rejected or your quota runs out, DocKit tells you and offers to convert without AI.
+- **Offline OCR** (default): runs [RapidOCR](https://github.com/RapidAI/RapidOCR) on your computer. It is free, needs no API key and no internet, and takes about 3 seconds per page on a laptop CPU. It is used only for image files and for PDF pages without text, so normal PDFs keep their tables. Best with printed text in English and other languages written in the Latin alphabet.
+- **AI Vision**: sends those pages and images to a vision model, which writes out the text and also describes charts and diagrams. Better with handwriting and complex layouts.
+  - Works with **Google Gemini** (has a free tier), **OpenAI**, or any **OpenAI-compatible endpoint** through the Base URL field: OpenRouter, or a local model in Ollama or LM Studio, so nothing leaves your machine.
+  - The API key is stored in Windows Credential Manager, not in a plain file.
+  - If the key is rejected or your quota runs out, DocKit tells you and offers to convert without AI.
+- **Off**: only extract text that is already in the file.
 
 ![Settings](docs/settings.png)
 
@@ -81,7 +84,7 @@ DocKit.spec              PyInstaller build file
 
 ## Privacy
 
-- Conversion, PDF merging and compression run entirely on your computer.
+- Conversion, offline OCR, PDF merging and compression run entirely on your computer.
 - With AI Vision on, page images and embedded images are sent to the provider you chose. With a local Base URL (Ollama, LM Studio), they stay on your machine.
 - Logs are written to `%LOCALAPPDATA%\MarkItDown\logs`.
 
@@ -89,4 +92,4 @@ DocKit.spec              PyInstaller build file
 
 DocKit is released under the [MIT License](LICENSE).
 
-`packages/markitdown` and `packages/markitdown-ocr` are modified copies of [microsoft/markitdown](https://github.com/microsoft/markitdown) (MIT, Copyright (c) Microsoft Corporation). The changes cover AI Vision error handling, cancellation, progress reporting and image compression. DocKit is not affiliated with or endorsed by Microsoft.
+`packages/markitdown` and `packages/markitdown-ocr` are modified copies of [microsoft/markitdown](https://github.com/microsoft/markitdown) (MIT, Copyright (c) Microsoft Corporation). The changes cover AI Vision error handling, cancellation, progress reporting, image compression and an offline RapidOCR backend. Offline OCR uses [RapidOCR](https://github.com/RapidAI/RapidOCR) (Apache-2.0) and PaddleOCR models (Apache-2.0). DocKit is not affiliated with or endorsed by Microsoft.

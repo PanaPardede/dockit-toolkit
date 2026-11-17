@@ -42,7 +42,7 @@ hiddenimports = [
     'pdf_optimizer',
 ]
 
-for pkg in ['magika', 'markitdown', 'markitdown_ocr', 'tkinterdnd2', 'sv_ttk']:
+for pkg in ['magika', 'markitdown', 'markitdown_ocr', 'tkinterdnd2', 'sv_ttk', 'rapidocr']:
     d, b, h = collect_all(pkg)
     datas.extend(d)
     binaries.extend(b)
@@ -65,7 +65,7 @@ a = Analysis(
         'torch', 'torchvision', 'torchaudio',
         'scipy', 'matplotlib',
         'IPython', 'jupyter', 'notebook',
-        'cv2', 'sklearn', 'tensorflow', 'transformers',
+        'sklearn', 'tensorflow', 'transformers',
     ],
     noarchive=False,
     optimize=0,
