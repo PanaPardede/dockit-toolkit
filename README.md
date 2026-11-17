@@ -55,7 +55,7 @@ python -m pip install -r requirements-dev.txt
 python -m PyInstaller DocKit.spec --noconfirm
 ```
 
-The app is written to `dist\DocKit.exe`. Run `create_desktop_shortcut.bat` to add a desktop shortcut.
+The app is written to `dist\DocKit.exe`. Run `create_shortcuts.bat` to add DocKit to the Start Menu (so Windows Search finds it) and the Desktop.
 
 ## Tests
 
