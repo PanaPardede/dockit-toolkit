@@ -56,6 +56,23 @@ python dockit_cli.py report.pdf scan.pdf --out converted
 
 Converts each file to `<name>.md` (offline OCR for scans) and prints a short summary with an outline instead of the whole text. Handy for scripts and for AI assistants that should read only part of a large document.
 
+### Use it from Claude Desktop (MCP)
+
+`dockit_mcp.py` is a local [MCP](https://modelcontextprotocol.io) server. It gives Claude three tools: `convert_document`, `read_converted` and `search_converted`, so Claude converts a file on your computer (offline OCR for scans) and reads only the parts it needs. Add this to `claude_desktop_config.json` (Settings > Developer > Edit Config), using your own paths, then restart Claude Desktop:
+
+```json
+{
+  "mcpServers": {
+    "dockit": {
+      "command": "C:\Path\To\python.exe",
+      "args": ["C:\Path\To\dockit\dockit_mcp.py"]
+    }
+  }
+}
+```
+
+Converted files are saved in `%TEMP%\dockit-parse`, and only those files can be read back. Large scans take a few seconds per page, so a very long scan can hit the client's time limit.
+
 ## Build the .exe
 
 ```powershell
