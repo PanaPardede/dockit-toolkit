@@ -48,6 +48,14 @@ python markitdown_gui.py
 
 `DocKit.bat` starts the app without a console window.
 
+## Command line
+
+```powershell
+python dockit_cli.py report.pdf scan.pdf --out converted
+```
+
+Converts each file to `<name>.md` (offline OCR for scans) and prints a short summary with an outline instead of the whole text. Handy for scripts and for AI assistants that should read only part of a large document.
+
 ## Build the .exe
 
 ```powershell
