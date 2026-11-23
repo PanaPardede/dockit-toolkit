@@ -64,8 +64,8 @@ Converts each file to `<name>.md` (offline OCR for scans) and prints a short sum
 {
   "mcpServers": {
     "dockit": {
-      "command": "C:\Path\To\python.exe",
-      "args": ["C:\Path\To\dockit\dockit_mcp.py"]
+      "command": "C:/Path/To/python.exe",
+      "args": ["C:/Path/To/dockit/dockit_mcp.py"]
     }
   }
 }
